@@ -17,66 +17,15 @@ The important modules are `overlay/default.nix`, `rpi/default.nix`,
 and `rpi/config.nix`. The other modules are mostly wrappers that set
 `config.txt` settings and enable required kernel modules.
 
+## Stability note
+
+`master` is the development branch -- if you want to avoid breaking changes, you
+should pin your flake to a specific release and refer to the release notes when
+upgrading.
+
 ## Example
 
-See the `rpi-example` config in this flake for a CI-checked example.
-
-```nix
-{
-  description = "raspberry-pi-nix example";
-  inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
-    raspberry-pi-nix.url = "github:nix-community/raspberry-pi-nix";
-  };
-
-  outputs = { self, nixpkgs, raspberry-pi-nix }:
-    let
-      inherit (nixpkgs.lib) nixosSystem;
-      basic-config = { pkgs, lib, ... }: {
-        # bcm2711 for rpi 3, 3+, 4, zero 2 w
-        # bcm2712 for rpi 5
-        # See the docs at:
-        # https://www.raspberrypi.com/documentation/computers/linux_kernel.html#native-build-configuration
-        raspberry-pi-nix.board = "bcm2711";
-        time.timeZone = "America/New_York";
-        users.users.root.initialPassword = "root";
-        networking = {
-          hostName = "basic-example";
-          useDHCP = false;
-          interfaces = {
-            wlan0.useDHCP = true;
-            eth0.useDHCP = true;
-          };
-        };
-        hardware = {
-          bluetooth.enable = true;
-          raspberry-pi = {
-            config = {
-              all = {
-                base-dt-params = {
-                  # enable autoprobing of bluetooth driver
-                  # https://github.com/raspberrypi/linux/blob/c8c99191e1419062ac8b668956d19e788865912a/arch/arm/boot/dts/overlays/README#L222-L224
-                  krnbt = {
-                    enable = true;
-                    value = "on";
-                  };
-                };
-              };
-            };
-          };
-        };
-      };
-
-    in {
-      nixosConfigurations = {
-        rpi-example = nixosSystem {
-          system = "aarch64-linux";
-          modules = [ raspberry-pi-nix.nixosModules.raspberry-pi basic-config ];
-        };
-      };
-    };
-}
-```
+See the `rpi-example` config in this flake for an example config built by CI.
 
 ## Using the provided cache to avoid compiling linux
 This repo uses the raspberry pi linux kernel fork, and compiling linux takes a
@@ -85,27 +34,12 @@ use to avoid compiling linux yourself. The cache can be found at
 https://nix-community.cachix.org, and you can follow the instructions there
 to use this cache.
 
-You don't need the cachix binary to use the cachix cache though, you
-just need to add the relevant
-[`substituters`](https://nixos.org/manual/nix/stable/command-ref/conf-file.html?highlight=nix.conf#conf-substituters)
-and
-[`trusted-public-keys`](https://nixos.org/manual/nix/stable/command-ref/conf-file.html?highlight=nix.conf#conf-trusted-public-keys)
-settings settings to your `nix.conf`. You can do this directly by
-modifying your `/etc/nix/nix.conf`, or in the flake definition. In the
-above example flake these `nix.conf` settings are added by the
-`nixConfig` attribute ([doc
-link](https://nixos.org/manual/nix/stable/command-ref/new-cli/nix3-flake.html?highlight=flake#flake-format)).
-Note that this will only work if the user running `nix build` is in
-[`trusted-users`](https://nixos.org/manual/nix/stable/command-ref/conf-file.html?highlight=nix.conf#conf-trusted-users)
-or the substituter is in
-[`trusted-substituters`](https://nixos.org/manual/nix/stable/command-ref/conf-file.html?highlight=nix.conf#conf-trusted-substituters).
-
 ## Building an sd-card image
 
-An image suitable for flashing to an sd-card can be found at the
-attribute `config.system.build.sdImage`. For example, if you wanted to
-build an image for `rpi-example` in the above configuration
-example you could run:
+Include the provided `sd-image` nixos module this flake provides, then an image
+suitable for flashing to an sd-card can be found at the attribute
+`config.system.build.sdImage`. For example, if you wanted to build an image for
+`rpi-example` in the above configuration example you could run:
 
 ```
 nix build '.#nixosConfigurations.rpi-example.config.system.build.sdImage'
