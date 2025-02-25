@@ -14,7 +14,7 @@ in
   options = with lib; {
     raspberry-pi-nix = {
       kernel-version = mkOption {
-        default = "v6_6_54";
+        default = "v6_6_51";
         type = types.str;
         description = "Kernel version to build.";
       };
@@ -76,6 +76,18 @@ in
         };
 
         package = mkPackageOption pkgs "uboot-rpi-arm64" { };
+      };
+      serial-console = {
+        enable = mkOption {
+          default = true;
+          type = types.bool;
+          description = ''
+            Whether to enable a console on serial0.
+
+            Corresponds with raspi-config's setting
+            "Would you like a login shell to be accessible over serial?"
+          '';
+        };
       };
     };
   };
@@ -320,11 +332,14 @@ in
     boot = {
       kernelParams =
         if cfg.uboot.enable then [ ]
-        else [
-          "console=tty1"
-          # https://github.com/raspberrypi/firmware/issues/1539#issuecomment-784498108
-          "console=serial0,115200n8"
-          "init=/sbin/init"
+        else builtins.concatLists [
+          [ "console=tty1" ]
+          (if cfg.serial-console.enable then [
+            # https://github.com/raspberrypi/firmware/issues/1539#issuecomment-784498108
+            "console=serial0,115200n8"
+          ] else [ ]
+          )
+          [ "init=/sbin/init" ]
         ];
       initrd = {
         availableKernelModules = [
